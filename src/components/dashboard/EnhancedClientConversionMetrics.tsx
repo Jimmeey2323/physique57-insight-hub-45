@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +14,23 @@ export const EnhancedClientConversionMetrics: React.FC<EnhancedClientConversionM
   // Calculate comprehensive metrics
   const totalClients = data.length;
   
-  // Fix new members calculation to match table - count rows where isNew contains "New"
+  // Fix new members calculation - count rows where isNew contains "New" (case insensitive)
   const newMembers = data.filter(client => {
     const isNewValue = String(client.isNew || '').toLowerCase();
-    return isNewValue.includes('new');
+    // Check if the value contains "new" but is not "not new"
+    return isNewValue.includes('new') && !isNewValue.includes('not new');
   }).length;
   
-  const convertedMembers = data.filter(client => client.conversionStatus === 'Converted').length;
-  const retainedMembers = data.filter(client => client.retentionStatus === 'Retained').length;
+  const convertedMembers = data.filter(client => {
+    const conversionStatus = String(client.conversionStatus || '').toLowerCase();
+    return conversionStatus.includes('converted');
+  }).length;
+  
+  const retainedMembers = data.filter(client => {
+    const retentionStatus = String(client.retentionStatus || '').toLowerCase();
+    return retentionStatus.includes('retained');
+  }).length;
+  
   const trialsCompleted = data.filter(client => client.visitsPostTrial > 0).length;
   
   // Lead to trial conversion (assuming first visit = lead, visits post trial > 0 = trial completed)
