@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +35,6 @@ import { usePayrollData } from '@/hooks/usePayrollData';
 import { useNewClientData } from '@/hooks/useNewClientData';
 import { useLeadsData } from '@/hooks/useLeadsData';
 import { useDiscountAnalysis } from '@/hooks/useDiscountAnalysis';
-import { ComprehensiveFilterSection } from '@/components/filters/ComprehensiveFilterSection';
 import { SalesMetricCards } from './SalesMetricCards';
 
 export const ComprehensiveExecutiveDashboard = () => {
@@ -211,17 +211,7 @@ export const ComprehensiveExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* Comprehensive Filter Section */}
-        <ComprehensiveFilterSection
-          availableLocations={availableLocations}
-          availableCategories={availableOptions.categories}
-          availableProducts={availableOptions.products}
-          availableSoldBy={availableOptions.soldBy}
-          availablePaymentMethods={availableOptions.paymentMethods}
-          showAdvancedFilters={true}
-        />
-
-        {/* Location Selector - kept for backward compatibility but now displays as tabs */}
+        {/* Location Selector - now displays as tabs */}
         <ExecutiveLocationSelector locations={availableLocations} />
 
         {/* Sales Metric Cards - showing actual sales data metrics */}
