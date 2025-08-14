@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,7 +34,7 @@ import { usePayrollData } from '@/hooks/usePayrollData';
 import { useNewClientData } from '@/hooks/useNewClientData';
 import { useLeadsData } from '@/hooks/useLeadsData';
 import { useDiscountAnalysis } from '@/hooks/useDiscountAnalysis';
-import { ComprehensiveFilterSection } from './ComprehensiveFilterSection';
+import { ComprehensiveFilterSection } from '@/components/filters/ComprehensiveFilterSection';
 import { SalesMetricCards } from './SalesMetricCards';
 
 export const ComprehensiveExecutiveDashboard = () => {
