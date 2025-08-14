@@ -14,29 +14,32 @@ export const EnhancedClientConversionMetrics: React.FC<EnhancedClientConversionM
   // Calculate comprehensive metrics
   const totalClients = data.length;
   
-  // Fix new members calculation - count rows where isNew contains "New" (case insensitive)
+  // New members calculation - check if "Is New" column contains "New" but not "Not New"
   const newMembers = data.filter(client => {
-    const isNewValue = String(client.isNew || '').toLowerCase();
-    // Check if the value contains "new" but is not "not new"
-    return isNewValue.includes('new') && !isNewValue.includes('not new');
+    const isNewValue = String(client.isNew || '').trim();
+    // Must contain "New" and should not be "Not New"
+    return isNewValue.includes('New') && isNewValue !== 'Not New';
   }).length;
   
+  // Converted members - check if "Conversion Status" contains "Converted"
   const convertedMembers = data.filter(client => {
-    const conversionStatus = String(client.conversionStatus || '').toLowerCase();
-    return conversionStatus.includes('converted');
+    const conversionStatus = String(client.conversionStatus || '').trim();
+    return conversionStatus.includes('Converted') && conversionStatus !== 'Not Converted';
   }).length;
   
+  // Retained members - check if "Retention Status" contains "Retained"
   const retainedMembers = data.filter(client => {
-    const retentionStatus = String(client.retentionStatus || '').toLowerCase();
-    return retentionStatus.includes('retained');
+    const retentionStatus = String(client.retentionStatus || '').trim();
+    return retentionStatus.includes('Retained') && retentionStatus !== 'Not Retained';
   }).length;
   
-  const trialsCompleted = data.filter(client => client.visitsPostTrial > 0).length;
+  // Trials completed - clients with visits post trial > 0
+  const trialsCompleted = data.filter(client => (client.visitsPostTrial || 0) > 0).length;
   
-  // Lead to trial conversion (assuming first visit = lead, visits post trial > 0 = trial completed)
+  // Lead to trial conversion (clients with first visit to those with visits post trial)
   const leadToTrialConversion = totalClients > 0 ? (trialsCompleted / totalClients) * 100 : 0;
   
-  // Trial to member conversion
+  // Trial to member conversion (trials completed to converted members)
   const trialToMemberConversion = trialsCompleted > 0 ? (convertedMembers / trialsCompleted) * 100 : 0;
   
   const totalLTV = data.reduce((sum, client) => sum + (client.ltv || 0), 0);

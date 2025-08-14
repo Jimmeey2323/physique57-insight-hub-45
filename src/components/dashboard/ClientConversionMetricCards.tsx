@@ -12,14 +12,24 @@ interface ClientConversionMetricCardsProps {
 export const ClientConversionMetricCards: React.FC<ClientConversionMetricCardsProps> = ({ data }) => {
   const totalClients = data.length;
   
-  // Fix new members calculation to match table - count rows where isNew contains "New"
+  // New members calculation - check if "Is New" contains "New" but not "Not New"
   const newMembers = data.filter(client => {
-    const isNewValue = String(client.isNew || '').toLowerCase();
-    return isNewValue.includes('new');
+    const isNewValue = String(client.isNew || '').trim();
+    return isNewValue.includes('New') && isNewValue !== 'Not New';
   }).length;
   
-  const convertedClients = data.filter(client => client.conversionStatus === 'Converted').length;
-  const retainedClients = data.filter(client => client.retentionStatus === 'Retained').length;
+  // Converted clients - check if "Conversion Status" contains "Converted" but not "Not Converted"
+  const convertedClients = data.filter(client => {
+    const conversionStatus = String(client.conversionStatus || '').trim();
+    return conversionStatus.includes('Converted') && conversionStatus !== 'Not Converted';
+  }).length;
+  
+  // Retained clients - check if "Retention Status" contains "Retained" but not "Not Retained"
+  const retainedClients = data.filter(client => {
+    const retentionStatus = String(client.retentionStatus || '').trim();
+    return retentionStatus.includes('Retained') && retentionStatus !== 'Not Retained';
+  }).length;
+  
   const totalLTV = data.reduce((sum, client) => sum + (client.ltv || 0), 0);
   const avgLTV = totalClients > 0 ? totalLTV / totalClients : 0;
   const conversionRate = totalClients > 0 ? (convertedClients / totalClients) * 100 : 0;
