@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +33,8 @@ import { usePayrollData } from '@/hooks/usePayrollData';
 import { useNewClientData } from '@/hooks/useNewClientData';
 import { useLeadsData } from '@/hooks/useLeadsData';
 import { useDiscountAnalysis } from '@/hooks/useDiscountAnalysis';
+import { ComprehensiveFilterSection } from './ComprehensiveFilterSection';
+import { SalesMetricCards } from './SalesMetricCards';
 
 export const ComprehensiveExecutiveDashboard = () => {
   const [showSourceData, setShowSourceData] = useState(false);
@@ -71,66 +72,69 @@ export const ComprehensiveExecutiveDashboard = () => {
     return Array.from(locations).sort();
   }, [salesData, sessionsData, newClientsData, payrollData]);
 
-  // Filter data to previous month and by location
-  const previousMonthData = useMemo(() => {
-    const now = new Date();
-    const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Get available filter options from data
+  const availableOptions = useMemo(() => {
+    const categories = new Set<string>();
+    const products = new Set<string>();
+    const soldBy = new Set<string>();
+    const paymentMethods = new Set<string>();
 
-    const filterByPreviousMonth = (dateStr: string) => {
-      const date = new Date(dateStr);
-      return date >= previousMonth && date < currentMonth;
-    };
-
-    const filterByLocation = (items: any[], locationKey: string) => {
-      if (!filters.location || filters.location.length === 0) return items;
-      const locationFilter = Array.isArray(filters.location) ? filters.location[0] : filters.location;
-      return items.filter(item => item[locationKey] === locationFilter);
-    };
-
-    const filteredSales = filterByLocation(
-      salesData?.filter(item => filterByPreviousMonth(item.paymentDate)) || [],
-      'calculatedLocation'
-    );
-
-    const filteredSessions = filterByLocation(
-      sessionsData?.filter(item => filterByPreviousMonth(item.date)) || [],
-      'location'
-    );
-
-    const filteredPayroll = filterByLocation(
-      payrollData?.filter(item => {
-        const monthYear = item.monthYear;
-        const prevMonthStr = previousMonth.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        return monthYear === prevMonthStr;
-      }) || [],
-      'location'
-    );
-
-    const filteredNewClients = filterByLocation(
-      newClientsData?.filter(item => filterByPreviousMonth(item.firstVisitDate)) || [],
-      'homeLocation'
-    );
-
-    const filteredLeads = filterByLocation(
-      leadsData?.filter(item => filterByPreviousMonth(item.createdAt || '')) || [],
-      'location'
-    );
-
-    const filteredDiscounts = filterByLocation(
-      discountData?.filter(item => filterByPreviousMonth(item.paymentDate)) || [],
-      'location'
-    );
+    salesData?.forEach(sale => {
+      if (sale.cleanedCategory) categories.add(sale.cleanedCategory);
+      if (sale.cleanedProduct) products.add(sale.cleanedProduct);
+      if (sale.soldBy) soldBy.add(sale.soldBy);
+      if (sale.paymentMethod) paymentMethods.add(sale.paymentMethod);
+    });
 
     return {
-      sales: filteredSales,
-      sessions: filteredSessions,
-      payroll: filteredPayroll,
-      newClients: filteredNewClients,
-      leads: filteredLeads,
-      discounts: filteredDiscounts
+      categories: Array.from(categories).sort(),
+      products: Array.from(products).sort(),
+      soldBy: Array.from(soldBy).sort(),
+      paymentMethods: Array.from(paymentMethods).sort()
     };
-  }, [salesData, sessionsData, payrollData, newClientsData, leadsData, discountData, filters.location]);
+  }, [salesData]);
+
+  // Filter data based on current filters
+  const filteredData = useMemo(() => {
+    const applyFilters = (items: any[], locationKey: string, dateKey: string) => {
+      return items.filter(item => {
+        // Date filter
+        const itemDate = new Date(item[dateKey]);
+        const startDate = new Date(filters.dateRange.start);
+        const endDate = new Date(filters.dateRange.end);
+        if (itemDate < startDate || itemDate > endDate) return false;
+
+        // Location filter
+        if (filters.location?.length && !filters.location.includes(item[locationKey])) return false;
+
+        // Category filter (for sales data)
+        if (filters.category?.length && item.cleanedCategory && !filters.category.includes(item.cleanedCategory)) return false;
+
+        // Product filter (for sales data)
+        if (filters.product?.length && item.cleanedProduct && !filters.product.includes(item.cleanedProduct)) return false;
+
+        // Payment method filter (for sales data)
+        if (filters.paymentMethod?.length && item.paymentMethod && !filters.paymentMethod.includes(item.paymentMethod)) return false;
+
+        // Sold by filter (for sales data)
+        if (filters.soldBy?.length && item.soldBy && !filters.soldBy.includes(item.soldBy)) return false;
+
+        return true;
+      });
+    };
+
+    return {
+      sales: applyFilters(salesData || [], 'calculatedLocation', 'paymentDate'),
+      sessions: applyFilters(sessionsData || [], 'location', 'date'),
+      payroll: payrollData?.filter(item => {
+        if (filters.location?.length && !filters.location.includes(item.location)) return false;
+        return true;
+      }) || [],
+      newClients: applyFilters(newClientsData || [], 'homeLocation', 'firstVisitDate'),
+      leads: applyFilters(leadsData || [], 'location', 'createdAt'),
+      discounts: applyFilters(discountData || [], 'location', 'paymentDate')
+    };
+  }, [salesData, sessionsData, payrollData, newClientsData, leadsData, discountData, filters]);
 
   const isLoading = salesLoading || sessionsLoading || payrollLoading || newClientsLoading || leadsLoading || discountLoading;
 
@@ -188,7 +192,7 @@ export const ComprehensiveExecutiveDashboard = () => {
                 </Badge>
                 <Badge className="bg-blue-500/20 text-blue-100 border-blue-400/30 px-4 py-2">
                   <Users className="w-4 h-4 mr-2" />
-                  {previousMonthData.sales.length + previousMonthData.sessions.length + previousMonthData.newClients.length} Records
+                  {filteredData.sales.length + filteredData.sessions.length + filteredData.newClients.length} Records
                 </Badge>
               </div>
 
@@ -206,14 +210,33 @@ export const ComprehensiveExecutiveDashboard = () => {
           </div>
         </div>
 
-        {/* Location Selector - moved to top */}
+        {/* Comprehensive Filter Section */}
+        <ComprehensiveFilterSection
+          availableLocations={availableLocations}
+          availableCategories={availableOptions.categories}
+          availableProducts={availableOptions.products}
+          availableSoldBy={availableOptions.soldBy}
+          availablePaymentMethods={availableOptions.paymentMethods}
+          showAdvancedFilters={true}
+        />
+
+        {/* Location Selector - kept for backward compatibility but now displays as tabs */}
         <ExecutiveLocationSelector locations={availableLocations} />
 
-        {/* Key Performance Metrics - 12 Cards with real data */}
-        <ExecutiveMetricCardsGrid data={previousMonthData} />
+        {/* Sales Metric Cards - showing actual sales data metrics */}
+        <div className="space-y-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-slate-800 mb-2">Sales Performance Metrics</h2>
+            <p className="text-slate-600">Key financial metrics from sales data</p>
+          </div>
+          <SalesMetricCards data={filteredData.sales} />
+        </div>
 
-        {/* Interactive Charts Section - 4 Charts with real data */}
-        <ExecutiveChartsGrid data={previousMonthData} />
+        {/* Original Key Performance Metrics */}
+        <ExecutiveMetricCardsGrid data={filteredData} />
+
+        {/* Interactive Charts Section */}
+        <ExecutiveChartsGrid data={filteredData} />
 
         {/* Main Content Sections */}
         <Card className="bg-white/90 backdrop-blur-sm shadow-2xl border-0 overflow-hidden">
@@ -264,15 +287,15 @@ export const ComprehensiveExecutiveDashboard = () => {
 
               <div className="space-y-6">
                 <TabsContent value="overview" className="space-y-6 mt-0">
-                  <EnhancedExecutiveDataTables data={previousMonthData} selectedLocation={selectedLocation} />
+                  <EnhancedExecutiveDataTables data={filteredData} selectedLocation={selectedLocation} />
                 </TabsContent>
 
                 <TabsContent value="performers" className="space-y-6 mt-0">
-                  <ExecutiveTopPerformersGrid data={previousMonthData} />
+                  <ExecutiveTopPerformersGrid data={filteredData} />
                 </TabsContent>
 
                 <TabsContent value="trends" className="space-y-6 mt-0">
-                  <ExecutiveChartsGrid data={previousMonthData} showTrends={true} />
+                  <ExecutiveChartsGrid data={filteredData} showTrends={true} />
                 </TabsContent>
 
                 <TabsContent value="insights" className="space-y-6 mt-0">
@@ -285,25 +308,25 @@ export const ComprehensiveExecutiveDashboard = () => {
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <TrendingUp className="w-5 h-5 text-green-600" />
                           <span className="text-sm font-medium">
-                            Total Revenue: ${previousMonthData.sales.reduce((sum, sale) => sum + sale.paymentValue, 0).toLocaleString()}
+                            Total Revenue: ${filteredData.sales.reduce((sum, sale) => sum + sale.paymentValue, 0).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Users className="w-5 h-5 text-blue-600" />
                           <span className="text-sm font-medium">
-                            New Clients: {previousMonthData.newClients.length}
+                            New Clients: {filteredData.newClients.length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Target className="w-5 h-5 text-purple-600" />
                           <span className="text-sm font-medium">
-                            Total Sessions: {previousMonthData.sessions.length}
+                            Total Sessions: {filteredData.sessions.length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Percent className="w-5 h-5 text-orange-600" />
                           <span className="text-sm font-medium">
-                            Discount Transactions: {previousMonthData.discounts.length}
+                            Discount Transactions: {filteredData.discounts.length}
                           </span>
                         </div>
                       </CardContent>
@@ -317,26 +340,26 @@ export const ComprehensiveExecutiveDashboard = () => {
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Clock className="w-5 h-5 text-orange-600" />
                           <span className="text-sm font-medium">
-                            Sessions with low attendance: {previousMonthData.sessions.filter(s => s.checkedInCount < s.capacity * 0.5).length}
+                            Sessions with low attendance: {filteredData.sessions.filter(s => s.checkedInCount < s.capacity * 0.5).length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <TrendingDown className="w-5 h-5 text-red-600" />
                           <span className="text-sm font-medium">
-                            Empty sessions: {previousMonthData.sessions.filter(s => s.checkedInCount === 0).length}
+                            Empty sessions: {filteredData.sessions.filter(s => s.checkedInCount === 0).length}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <Zap className="w-5 h-5 text-yellow-600" />
                           <span className="text-sm font-medium">
-                            Lead conversion rate: {previousMonthData.leads.length > 0 ? 
-                              ((previousMonthData.leads.filter(l => l.conversionStatus === 'Converted').length / previousMonthData.leads.length) * 100).toFixed(1) : '0'}%
+                            Lead conversion rate: {filteredData.leads.length > 0 ? 
+                              ((filteredData.leads.filter(l => l.conversionStatus === 'Converted').length / filteredData.leads.length) * 100).toFixed(1) : '0'}%
                           </span>
                         </div>
                         <div className="flex items-center gap-3 p-3 bg-white/80 rounded-lg">
                           <DollarSign className="w-5 h-5 text-green-600" />
                           <span className="text-sm font-medium">
-                            Total Discount Amount: ${previousMonthData.discounts.reduce((sum, d) => sum + d.discountAmount, 0).toLocaleString()}
+                            Total Discount Amount: ${filteredData.discounts.reduce((sum, d) => sum + d.discountAmount, 0).toLocaleString()}
                           </span>
                         </div>
                       </CardContent>
@@ -356,27 +379,27 @@ export const ComprehensiveExecutiveDashboard = () => {
             sources={[
               {
                 name: "Sales Data (Previous Month)",
-                data: previousMonthData.sales
+                data: filteredData.sales
               },
               {
                 name: "Sessions Data (Previous Month)",
-                data: previousMonthData.sessions
+                data: filteredData.sessions
               },
               {
                 name: "New Clients Data (Previous Month)",
-                data: previousMonthData.newClients
+                data: filteredData.newClients
               },
               {
                 name: "Leads Data (Previous Month)",
-                data: previousMonthData.leads
+                data: filteredData.leads
               },
               {
                 name: "Payroll Data (Previous Month)",
-                data: previousMonthData.payroll
+                data: filteredData.payroll
               },
               {
                 name: "Discounts Data (Previous Month)",
-                data: previousMonthData.discounts
+                data: filteredData.discounts
               }
             ]}
           />
