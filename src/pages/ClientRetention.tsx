@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, TrendingUp, Target, Users as UsersIcon, Eye, Calendar, Filter, PieChart } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { NewClientFilterOptions } from '@/types/dashboard';
+import { getPreviousMonthDateRange } from '@/utils/dateUtils';
 
 // Import enhanced components
 import { ClientConversionLocationSelector } from '@/components/dashboard/ClientConversionLocationSelector';
@@ -30,18 +31,21 @@ const ClientRetention = () => {
   const [selectedLocation, setSelectedLocation] = useState('All Locations');
   const [activeTab, setActiveTab] = useState('overview');
   
-  // Filters state
-  const [filters, setFilters] = useState<NewClientFilterOptions>({
-    dateRange: { start: '', end: '' },
-    location: [],
-    homeLocation: [],
-    trainer: [],
-    paymentMethod: [],
-    retentionStatus: [],
-    conversionStatus: [],
-    isNew: [],
-    minLTV: undefined,
-    maxLTV: undefined
+  // Initialize filters with previous month date range
+  const [filters, setFilters] = useState<NewClientFilterOptions>(() => {
+    const previousMonth = getPreviousMonthDateRange();
+    return {
+      dateRange: previousMonth,
+      location: [],
+      homeLocation: [],
+      trainer: [],
+      paymentMethod: [],
+      retentionStatus: [],
+      conversionStatus: [],
+      isNew: [],
+      minLTV: undefined,
+      maxLTV: undefined
+    };
   });
 
   useEffect(() => {
@@ -132,6 +136,17 @@ const ClientRetention = () => {
       );
     }
 
+    // Apply date range filter if both start and end dates are provided
+    if (filters.dateRange.start && filters.dateRange.end) {
+      filtered = filtered.filter(client => {
+        if (!client.firstVisitDate) return false;
+        const clientDate = new Date(client.firstVisitDate);
+        const startDate = new Date(filters.dateRange.start);
+        const endDate = new Date(filters.dateRange.end);
+        return clientDate >= startDate && clientDate <= endDate;
+      });
+    }
+
     // Apply LTV filters
     if (filters.minLTV !== undefined) {
       filtered = filtered.filter(client => (client.ltv || 0) >= filters.minLTV!);
@@ -204,7 +219,7 @@ const ClientRetention = () => {
             onLocationChange={setSelectedLocation}
           />
 
-          {/* Enhanced Filter Section */}
+          {/* Enhanced Filter Section with previous month default */}
           <EnhancedClientConversionFilterSection
             filters={filters}
             onFiltersChange={setFilters}
